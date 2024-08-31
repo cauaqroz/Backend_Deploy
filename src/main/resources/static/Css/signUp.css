@@ -1,0 +1,39 @@
+.signUp .formulario {
+    position: absolute;
+    left: 10%;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 9999;
+    background: rgba(194, 182, 253, 0.247);
+    backdrop-filter: blur(7px);
+    padding: 65px;
+    padding-bottom: 100px;
+    padding-top: 100px;
+    border-radius: 10px;
+}
+
+.signUp .btn-entrar {
+    display: block;
+    margin-left: auto;
+    margin-right: auto;
+    position: relative;
+}
+
+.signUp .formulario .btn-entrar {
+    top: 70px; /* 10px de espaço acima do botão */
+}
+
+
+
+@media (max-width: 600px) {
+    .signUp .formulario {
+        left: 50%;
+        transform: translate(-50%, -50%);
+    }
+}
+@media (max-width: 920px) {
+    .signUp .formulario {
+        left: 50%;
+        transform: translate(-50%, -50%);
+    }
+}

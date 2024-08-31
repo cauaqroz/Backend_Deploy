@@ -123,35 +123,34 @@ public ResponseEntity<?> getUserById(@PathVariable String id) {
 }
 
     // Cadastrar usuário como freelancer
-@PostMapping("/freelancer")
-public ResponseEntity<?> createFreelancer(@RequestBody Freelancer freelancerDto) {
-    return userRepository.findByEmail(freelancerDto.getEmail()).map(user -> {
-
-        // Verifica se já existe um cadastro de freelancer para este usuário
-        if (freelancerRepository.findById(user.getId()).isPresent()) {
-            return ResponseEntity.badRequest().body("Usuário já cadastrado como freelancer.");
-        }
-        Freelancer freelancer = new Freelancer();
-
-        // Associa o freelancer ao mesmo ID do usuário
-        freelancer.setId(user.getId());
-        freelancer.setDescription(freelancerDto.getDescription());
-        freelancer.setPortfolio(freelancerDto.getPortfolio());
-        freelancer.setAreaOfExpertise(freelancerDto.getAreaOfExpertise());
-        freelancer.setEducation(freelancerDto.getEducation());
-        freelancer.setCompletedJobs(freelancerDto.getCompletedJobs());
-        freelancer.setOnTimeDeliveries(freelancerDto.getOnTimeDeliveries());
-        
-        freelancerRepository.save(freelancer);
-        return ResponseEntity.ok("Freelancer cadastrado com sucesso.");
-    }).orElse(ResponseEntity.badRequest().body("Email não cadastrado como usuário."));
-}
-
-//Atualizar Informações do Freelancer passando o email pelo corpo da requisição
+    @PostMapping("/freelancer")
+    public ResponseEntity<?> createFreelancer(@RequestHeader("userId") String userId, @RequestBody Freelancer freelancerDto) {
+        return userRepository.findById(userId).map(user -> {
+    
+            // Verifica se já existe um cadastro de freelancer para este usuário
+            if (freelancerRepository.findById(user.getId()).isPresent()) {
+                return ResponseEntity.badRequest().body("Usuário já cadastrado como freelancer.");
+            }
+            Freelancer freelancer = new Freelancer();
+    
+            // Associa o freelancer ao mesmo ID do usuário
+            freelancer.setId(user.getId());
+            freelancer.setDescription(freelancerDto.getDescription());
+            freelancer.setPortfolio(freelancerDto.getPortfolio());
+            freelancer.setAreaOfExpertise(freelancerDto.getAreaOfExpertise());
+            freelancer.setEducation(freelancerDto.getEducation());
+            freelancer.setCompletedJobs(freelancerDto.getCompletedJobs());
+            freelancer.setOnTimeDeliveries(freelancerDto.getOnTimeDeliveries());
+            
+            freelancerRepository.save(freelancer);
+            return ResponseEntity.ok("Freelancer cadastrado com sucesso.");
+        }).orElse(ResponseEntity.badRequest().body("Usuário não encontrado."));
+    }
+/*
+// Atualizar Informações do Freelancer passando o userId pelo header
 @PutMapping("/freelancer/update")
-public ResponseEntity<?> updateFreelancerByEmail(@RequestBody Freelancer freelancerDto) {
-    String email = freelancerDto.getEmail(); // Supondo que FreelancerDto tenha um campo email
-    return userRepository.findByEmail(email).map(user -> {
+public ResponseEntity<?> updateFreelancerById(@RequestHeader("userId") String userId, @RequestBody Freelancer freelancerDto) {
+    return userRepository.findById(userId).map(user -> {
         return freelancerRepository.findById(user.getId()).map(freelancer -> {
             // Atualiza as informações do freelancer com os dados recebidos
             freelancer.setDescription(freelancerDto.getDescription());
@@ -164,8 +163,8 @@ public ResponseEntity<?> updateFreelancerByEmail(@RequestBody Freelancer freelan
             freelancerRepository.save(freelancer);
             return ResponseEntity.ok("Freelancer atualizado com sucesso.");
         }).orElse(ResponseEntity.badRequest().body("Freelancer não encontrado para este usuário."));
-    }).orElse(ResponseEntity.badRequest().body("Email não cadastrado como usuário."));
-}
+    }).orElse(ResponseEntity.badRequest().body("Usuário não encontrado."));
+}*/
 
 //login antigo
 /*
@@ -296,4 +295,101 @@ public ResponseEntity<?> getFreelancerInfo(@PathVariable String id) {
     return ResponseEntity.ok(result);
 }
 
+// Atualizar informações do usuário usando PATCH e passando o userId pelo header
+// Atualizar informações do usuário usando PATCH e passando o userId pelo header
+@PatchMapping("/update")
+public ResponseEntity<?> patchUserById(@RequestHeader("userId") String userId, @RequestBody Map<String, Object> updates) {
+    return userRepository.findById(userId).map(user -> {
+        updates.forEach((key, value) -> {
+            switch (key) {
+                case "name":
+                    user.setName((String) value);
+                    break;
+                case "lastName":
+                    user.setLastName((String) value);
+                    break;
+                case "email":
+                    String newEmail = (String) value;
+                    // Verificar se o novo email já está em uso por outro usuário
+                    if (userRepository.findByEmail(newEmail).isPresent() && !user.getEmail().equals(newEmail)) {
+                        throw new IllegalArgumentException("Email já está em uso por outro usuário.");
+                    }
+                    user.setEmail(newEmail);
+                    break;
+                case "password":
+                    BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
+                    String hashedPassword = passwordEncoder.encode((String) value);
+                    user.setPassword(hashedPassword);
+                    break;
+                case "country":
+                    user.setCountry((String) value);
+                    break;
+                case "state":
+                    user.setState((String) value);
+                    break;
+                default:
+                    break;
+            }
+        });
+        userRepository.save(user);
+        return ResponseEntity.ok("Usuário atualizado com sucesso.");
+    }).orElse(ResponseEntity.status(HttpStatus.NOT_FOUND).body("Usuário não encontrado."));
+}
+// Atualizar informações do Freelancer usando PATCH e passando o userId pelo header
+@PatchMapping("/freelancer/update")
+public ResponseEntity<?> patchFreelancerById(@RequestHeader("userId") String userId, @RequestBody Map<String, Object> updates) {
+    return userRepository.findById(userId).map(user -> {
+        return freelancerRepository.findById(user.getId()).map(freelancer -> {
+            updates.forEach((key, value) -> {
+                switch (key) {
+                    case "description":
+                        freelancer.setDescription((String) value);
+                        break;
+                    case "portfolio":
+                        freelancer.setPortfolio((String) value);
+                        break;
+                    case "education":
+                        freelancer.setEducation((String) value);
+                        break;
+                    case "areaOfExpertise":
+                        freelancer.setAreaOfExpertise((String) value);
+                        break;
+                    case "completedJobs":
+                        freelancer.setCompletedJobs((Integer) value);
+                        break;
+                    case "onTimeDeliveries":
+                        freelancer.setOnTimeDeliveries((Integer) value);
+                        break;
+                    default:
+                        break;
+                }
+            });
+            freelancerRepository.save(freelancer);
+            return ResponseEntity.ok("Freelancer atualizado com sucesso.");
+        }).orElse(ResponseEntity.badRequest().body("Freelancer não encontrado para este usuário."));
+    }).orElse(ResponseEntity.badRequest().body("Usuário não encontrado."));
+}
+@DeleteMapping("/delete")
+public ResponseEntity<?> deleteUserById(@RequestHeader("userId") String userId) {
+    return userRepository.findById(userId).map(user -> {
+        // Deletar perfil de freelancer se existir
+        freelancerRepository.findById(user.getId()).ifPresent(freelancer -> {
+            freelancerRepository.delete(freelancer);
+        });
+        // Deletar usuário
+        userRepository.delete(user);
+        return ResponseEntity.ok("Usuário deletado com sucesso.");
+    }).orElse(ResponseEntity.status(HttpStatus.NOT_FOUND).body("Usuário não encontrado."));
+}
+
+// Deletar apenas o perfil de freelancer
+@DeleteMapping("/freelancer/delete")
+public ResponseEntity<?> deleteFreelancerById(@RequestHeader("userId") String userId) {
+    return userRepository.findById(userId).map(user -> {
+        return freelancerRepository.findById(user.getId()).map(freelancer -> {
+            freelancerRepository.delete(freelancer);
+            return ResponseEntity.ok("Perfil de freelancer deletado com sucesso.");
+        }).orElse(ResponseEntity.status(HttpStatus.NOT_FOUND).body("Perfil de freelancer não encontrado para este usuário."));
+    }).orElse(ResponseEntity.status(HttpStatus.NOT_FOUND).body("Usuário não encontrado."));
+}
 }
