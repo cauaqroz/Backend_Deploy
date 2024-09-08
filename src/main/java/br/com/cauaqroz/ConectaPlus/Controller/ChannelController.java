@@ -4,6 +4,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -137,6 +138,34 @@ public ResponseEntity<?> listAccessRequests(@PathVariable String channelId, @Req
     }
     return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Acesso negado ou canal não encontrado.");
 }
+
+    // Listar todas as mensagens da coleção "mensagens"
+    @GetMapping("/messages")
+    public List<Message> getAllMessages() {
+        return messageRepository.findAll();
+    }
+  
+    @GetMapping("/notifications")
+    public ResponseEntity<?> getNotifications(@RequestHeader("userId") String userId) {
+        // Buscar todos os canais que o usuário participa ou criou
+        List<Channel> channels = channelRepository.findAll().stream()
+                .filter(channel -> (channel.getMasterUserId() != null && channel.getMasterUserId().equals(userId)) || 
+                        (channel.getAllowedUserIds() != null && channel.getAllowedUserIds().contains(userId)))
+                .collect(Collectors.toList());
+    
+        // Buscar novas mensagens nesses canais
+        List<Message> newMessages = new ArrayList<>();
+        for (Channel channel : channels) {
+            List<Message> messages = messageRepository.findByChannelId(channel.getId());
+            // Filtrar mensagens onde o senderId é diferente do userId
+            messages.stream()
+                    .filter(message -> !message.getSender().equals(userId))
+                    .forEach(newMessages::add);
+        }
+    
+        return ResponseEntity.ok(newMessages);
+    }
+
 }
 
 

@@ -17,11 +17,19 @@ public class User {
     private String password;
     private String country;
     private String state;
+    private String avatar;
 
 
     public User() {
         this.id = generateRandomId(10);
         this.registrationDate = LocalDateTime.now();
+    }
+    public String getAvatar() {
+        return avatar;
+    }
+
+    public void setAvatar(String avatar) {
+        this.avatar = avatar;
     }
 
     private static String generateRandomId(int length) {

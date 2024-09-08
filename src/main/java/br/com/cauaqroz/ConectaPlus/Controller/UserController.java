@@ -1,6 +1,7 @@
 package br.com.cauaqroz.ConectaPlus.Controller;
 
 
+import java.io.InputStream;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -8,9 +9,13 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.io.InputStreamResource;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 
 
@@ -20,6 +25,7 @@ import br.com.cauaqroz.ConectaPlus.model.User;
 import br.com.cauaqroz.ConectaPlus.repository.FreelancerRepository;
 import br.com.cauaqroz.ConectaPlus.repository.ProjetoRepository;
 import br.com.cauaqroz.ConectaPlus.repository.UserRepository;
+import br.com.cauaqroz.ConectaPlus.service.FileStorageService;
 import br.com.cauaqroz.ConectaPlus.util.JwtUtil;
 
 @RestController
@@ -37,6 +43,9 @@ public class UserController {
 
     @Autowired
     private JwtUtil jwtUtil;
+
+@Autowired
+    private FileStorageService fileStorageService;
 
 
     // Cadastrar usuário
@@ -219,6 +228,7 @@ return ResponseEntity.ok(response);
         response.put("projetosCriados", projetosCriados);
         response.put("projetosParticipando", projetosParticipando);
         response.put("token", token);
+        response.put("avatar", user.getAvatar());
 
         return ResponseEntity.ok(response);
     }
@@ -392,4 +402,67 @@ public ResponseEntity<?> deleteFreelancerById(@RequestHeader("userId") String us
         }).orElse(ResponseEntity.status(HttpStatus.NOT_FOUND).body("Perfil de freelancer não encontrado para este usuário."));
     }).orElse(ResponseEntity.status(HttpStatus.NOT_FOUND).body("Usuário não encontrado."));
 }
+
+
+@PostMapping("/uploadAvatar")
+public ResponseEntity<?> uploadAvatar(@RequestHeader("userId") String userId, @RequestParam("file") MultipartFile file) {
+    Optional<User> userOptional = userRepository.findById(userId);
+    if (!userOptional.isPresent()) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Usuário não encontrado.");
+    }
+
+    String avatarUrl = fileStorageService.uploadFile(file);
+    User user = userOptional.get();
+    user.setAvatar(avatarUrl);
+    userRepository.save(user);
+
+    Map<String, Object> response = new HashMap<>();
+    response.put("message", "Avatar atualizado com sucesso.");
+    response.put("avatarId", avatarUrl); // Supondo que avatarUrl seja o ID do avatar
+
+    return ResponseEntity.ok(response);
+}
+/*
+@PostMapping("/uploadAvatar")
+    public ResponseEntity<?> uploadAvatar(@RequestHeader("userId") String userId, @RequestParam("file") MultipartFile file) {
+        Optional<User> userOptional = userRepository.findById(userId);
+        if (!userOptional.isPresent()) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Usuário não encontrado.");
+        }
+
+        String avatarUrl = fileStorageService.uploadFile(file);
+        User user = userOptional.get();
+        user.setAvatar(avatarUrl);
+        userRepository.save(user);
+
+        return ResponseEntity.ok("Avatar atualizado com sucesso.");
+    }
+*/
+    // Endpoint para recuperar a imagem de perfil do usuário pelo ID do avatar
+    @GetMapping("/avatar/{avatarId}")
+    public ResponseEntity<?> getAvatar(@PathVariable("avatarId") String avatarId) {
+        Optional<User> userOptional = userRepository.findByAvatar(avatarId);
+        if (!userOptional.isPresent()) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Avatar não encontrado.");
+        }
+    
+        User user = userOptional.get();
+        String avatarUrl = user.getAvatar();
+        if (avatarUrl == null) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Avatar não encontrado.");
+        }
+    
+        try {
+            InputStream fileStream = fileStorageService.downloadFile(avatarUrl);
+            return ResponseEntity.ok()
+                    .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + avatarUrl + "\"")
+                    .contentType(MediaType.IMAGE_JPEG) // Ajuste o tipo de mídia conforme necessário
+                    .body(new InputStreamResource(fileStream));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Erro ao recuperar o avatar.");
+        }
+    }
+
+    
+
 }

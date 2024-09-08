@@ -11,4 +11,6 @@ public interface ProjetoRepository extends MongoRepository<Projeto, String> {
 
      @Query("{ 'titulo': { $regex: ?0, $options: 'i' } }")
     List<Projeto> findByTituloContaining(String titulo);
+
+    Projeto findByChatId(String chatId);
 }

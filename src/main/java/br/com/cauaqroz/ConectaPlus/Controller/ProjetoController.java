@@ -266,4 +266,13 @@ public ResponseEntity<?> excluirProjeto(@PathVariable String projetoId, @Request
                 .contentType(MediaType.IMAGE_JPEG) // Ajuste o tipo de mídia conforme necessário
                 .body(new InputStreamResource(fileStream));
     }
+
+    @GetMapping("/notify/{chatId}")
+    public ResponseEntity<?> buscarProjetoPorChatId(@PathVariable String chatId) {
+        Projeto projeto = projetoRepository.findByChatId(chatId);
+        if (projeto == null) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Projeto não encontrado para o chatId fornecido.");
+        }
+        return ResponseEntity.ok(projeto);
+    }
 }
