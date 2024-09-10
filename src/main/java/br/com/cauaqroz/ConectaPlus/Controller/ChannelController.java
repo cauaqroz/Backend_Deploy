@@ -165,7 +165,11 @@ public ResponseEntity<?> listAccessRequests(@PathVariable String channelId, @Req
     
         return ResponseEntity.ok(newMessages);
     }
-
+    @GetMapping("/channels")
+    public ResponseEntity<List<Channel>> getAllChannels() {
+        List<Channel> channels = channelRepository.findAll();
+        return ResponseEntity.ok(channels);
+    }
 }
 
 
