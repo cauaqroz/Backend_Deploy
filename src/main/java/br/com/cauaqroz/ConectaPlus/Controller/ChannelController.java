@@ -1,49 +1,38 @@
 package br.com.cauaqroz.ConectaPlus.Controller;
 
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+import br.com.cauaqroz.ConectaPlus.model.Channel;
+import br.com.cauaqroz.ConectaPlus.service.IChannelService;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.stream.Collectors;
-
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestHeader;
-
-import br.com.cauaqroz.ConectaPlus.model.Channel;
-import br.com.cauaqroz.ConectaPlus.model.Message;
-import br.com.cauaqroz.ConectaPlus.repository.ChannelRepository;
-import br.com.cauaqroz.ConectaPlus.repository.MessageRepository;
 
 @RestController
 public class ChannelController {
-    private final ChannelRepository channelRepository;
-    private final MessageRepository messageRepository; 
 
-    public ChannelController(ChannelRepository channelRepository, MessageRepository messageRepository) {
-        this.channelRepository = channelRepository;
-        this.messageRepository = messageRepository; 
-    }
+    @Autowired
+    private IChannelService channelService;
 
     @PostMapping("/channel")
-    public Channel createChannel(@RequestBody Channel channel, @RequestHeader("userId") String userId) {
-        channel.setMasterUserId(userId); // Define o usuário que está criando como mestre
-        channelRepository.save(channel);
-        return channel;
+    public ResponseEntity<Channel> createChannel(@RequestBody Channel channel, @RequestHeader("userId") String userId) {
+        Channel createdChannel = channelService.createChannel(userId);
+        return ResponseEntity.status(HttpStatus.CREATED).body(createdChannel);
     }
 
     @PostMapping("/channel/{channelId}/authorize")
-    public ResponseEntity<?> authorizeUser(@PathVariable String channelId, @RequestBody List<String> userIds, @RequestHeader("userId") String masterUserId) {
-        Channel channel = channelRepository.findById(channelId).orElse(null);
+    public ResponseEntity<?> authorizeUser(@PathVariable String channelId, @RequestBody List<String> userIds,
+                                           @RequestHeader("userId") String masterUserId) {
+        Channel channel = channelService.findById(channelId).orElse(null);
         if (channel == null) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Canal não encontrado.");
         }
         if (!channel.getMasterUserId().equals(masterUserId)) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Acesso negado.");
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body("Apenas o mestre do canal pode autorizar usuários.");
         }
         List<String> allowedUserIds = channel.getAllowedUserIds();
         if (allowedUserIds == null) {
@@ -52,11 +41,8 @@ public class ChannelController {
         List<String> accessRequests = channel.getAccessRequests();
         boolean updated = false;
         for (String userId : userIds) {
-            if (!allowedUserIds.contains(userId)) {
+            if (accessRequests.contains(userId) && !allowedUserIds.contains(userId)) {
                 allowedUserIds.add(userId);
-                updated = true;
-            }
-            if (accessRequests != null && accessRequests.contains(userId)) {
                 accessRequests.remove(userId);
                 updated = true;
             }
@@ -64,112 +50,93 @@ public class ChannelController {
         if (updated) {
             channel.setAllowedUserIds(allowedUserIds);
             channel.setAccessRequests(accessRequests);
-            channelRepository.save(channel);
-            return ResponseEntity.ok().body("Usuário(s) autorizado(s) com sucesso.");
+            channelService.save(channel);
+            return ResponseEntity.ok("Usuário(s) autorizado(s) com sucesso.");
         }
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Nenhuma atualização necessária ou usuário(s) já autorizado(s).");
     }
 
     @PostMapping("/channel/{channelId}/deny-access")
-public ResponseEntity<?> denyAccess(@PathVariable String channelId, @RequestBody List<String> userIds, @RequestHeader("userId") String masterUserId) {
-    Channel channel = channelRepository.findById(channelId).orElse(null);
-    if (channel == null) {
-        return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Canal não encontrado.");
-    }
-    if (!channel.getMasterUserId().equals(masterUserId)) {
-        return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Acesso negado.");
-    }
-
-    // Remove os IDs dos usuários das solicitações de acesso, se existirem
-    List<String> accessRequests = channel.getAccessRequests();
-    if (accessRequests != null) {
-        accessRequests.removeAll(userIds);
-        channel.setAccessRequests(accessRequests);
-    }
-
-    // Remove os IDs dos usuários da lista de usuários permitidos, se existirem
-    List<String> allowedUserIds = channel.getAllowedUserIds();
-    if (allowedUserIds != null) {
-        allowedUserIds.removeAll(userIds);
-        channel.setAllowedUserIds(allowedUserIds);
-    }
-
-    channelRepository.save(channel);
-    return ResponseEntity.ok("Acesso removido para os usuários especificados.");
-}
-
-@PostMapping("/channel/{channelId}/request-access")
-public String requestAccess(@PathVariable String channelId, @RequestHeader("userId") String userId) {
-    Channel channel = channelRepository.findById(channelId).orElse(null);
-    if (channel != null) {
-        if (channel.getAccessRequests() == null) {
-            channel.setAccessRequests(new ArrayList<>());
+    public ResponseEntity<?> denyAccess(@PathVariable String channelId, @RequestBody List<String> userIds,
+                                        @RequestHeader("userId") String masterUserId) {
+        Channel channel = channelService.findById(channelId).orElse(null);
+        if (channel == null) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Canal não encontrado.");
         }
-        // Verifica se o userId já fez uma solicitação de acesso
-        if (!channel.getAccessRequests().contains(userId)) {
-            channel.getAccessRequests().add(userId);
-            channelRepository.save(channel);
-            return "Solicitação de acesso enviada para o canal: " + channelId;
-        } else {
-            return "Solicitação de acesso já foi enviada para o canal: " + channelId;
+        if (!channel.getMasterUserId().equals(masterUserId)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body("Apenas o mestre do canal pode negar acesso.");
         }
-    }
-    return "Canal não encontrado.";
-}
 
-@GetMapping("/channel/{channelId}")
-public ResponseEntity<?> joinChannel(@PathVariable String channelId, @RequestHeader("userId") String userId) {
-    Channel channel = channelRepository.findById(channelId).orElse(null);
-    if (channel == null) {
-        return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Canal não encontrado.");
+        List<String> accessRequests = channel.getAccessRequests();
+        if (accessRequests != null) {
+            accessRequests.removeAll(userIds);
+        }
+
+        List<String> allowedUserIds = channel.getAllowedUserIds();
+        if (allowedUserIds != null) {
+            allowedUserIds.removeAll(userIds);
+        }
+
+        channelService.save(channel);
+        return ResponseEntity.ok("Acesso removido para os usuários especificados.");
     }
-    if (!channel.getMasterUserId().equals(userId) && (channel.getAllowedUserIds() == null || !channel.getAllowedUserIds().contains(userId))) {
-        return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Acesso negado.");
+
+    @PostMapping("/channel/{channelId}/request-access")
+    public String requestAccess(@PathVariable String channelId, @RequestHeader("userId") String userId) {
+        Channel channel = channelService.findById(channelId).orElse(null);
+        if (channel != null) {
+            List<String> accessRequests = channel.getAccessRequests();
+            if (!accessRequests.contains(userId)) {
+                accessRequests.add(userId);
+                channel.setAccessRequests(accessRequests);
+                channelService.save(channel);
+                return "Pedido de acesso enviado.";
+            }
+            return "Pedido de acesso já enviado.";
+        }
+        return "Canal não encontrado.";
     }
-    List<Message> messages = messageRepository.findByChannelId(channelId);
-    channel.setMessages(messages);
-    return ResponseEntity.ok(channel);
-}
+
+    @GetMapping("/channel/{channelId}")
+    public ResponseEntity<?> joinChannel(@PathVariable String channelId, @RequestHeader("userId") String userId) {
+        Channel channel = channelService.findById(channelId).orElse(null);
+        if (channel == null) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Canal não encontrado.");
+        }
+        if (channel.getAllowedUserIds().contains(userId)) {
+            return ResponseEntity.ok(channel);
+        }
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Usuário não autorizado a acessar este canal.");
+    }
+
     @GetMapping("/channel/{channelId}/access-requests")
-public ResponseEntity<?> listAccessRequests(@PathVariable String channelId, @RequestHeader("userId") String userId) {
-    Channel channel = channelRepository.findById(channelId).orElse(null);
-    if (channel != null && channel.getMasterUserId().equals(userId)) {
+    public ResponseEntity<?> listAccessRequests(@PathVariable String channelId,
+                                                @RequestHeader("userId") String userId) {
+        Channel channel = channelService.findById(channelId).orElse(null);
+        if (channel == null) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Canal não encontrado.");
+        }
+        if (!channel.getMasterUserId().equals(userId)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body("Apenas o mestre do canal pode ver os pedidos de acesso.");
+        }
         return ResponseEntity.ok(channel.getAccessRequests());
     }
-    return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Acesso negado ou canal não encontrado.");
-}
 
-    // Listar todas as mensagens da coleção "mensagens"
-    @GetMapping("/messages")
-    public List<Message> getAllMessages() {
-        return messageRepository.findAll();
-    }
-  
-    @GetMapping("/notifications")
-    public ResponseEntity<?> getNotifications(@RequestHeader("userId") String userId) {
-        // Buscar todos os canais que o usuário participa ou criou
-        List<Channel> channels = channelRepository.findAll().stream()
-                .filter(channel -> (channel.getMasterUserId() != null && channel.getMasterUserId().equals(userId)) || 
-                        (channel.getAllowedUserIds() != null && channel.getAllowedUserIds().contains(userId)))
-                .collect(Collectors.toList());
-    
-        // Buscar novas mensagens nesses canais
-        List<Message> newMessages = new ArrayList<>();
-        for (Channel channel : channels) {
-            List<Message> messages = messageRepository.findByChannelId(channel.getId());
-            // Filtrar mensagens onde o senderId é diferente do userId
-            messages.stream()
-                    .filter(message -> !message.getSender().equals(userId))
-                    .forEach(newMessages::add);
-        }
-    
-        return ResponseEntity.ok(newMessages);
-    }
     @GetMapping("/channels")
     public ResponseEntity<List<Channel>> getAllChannels() {
-        List<Channel> channels = channelRepository.findAll();
+        return ResponseEntity.ok(channelService.findAll());
+    }
+
+    @GetMapping("/channels/{userId}")
+    public ResponseEntity<List<Channel>> getChannelsByUserId(@PathVariable String userId) {
+        List<Channel> channels = channelService.getChannelsByUserId(userId);
+        return ResponseEntity.ok(channels);
+    }
+    @GetMapping("/channels/between/{userId1}/{userId2}")
+    public ResponseEntity<List<Channel>> getChannelsBetweenUsers(@PathVariable String userId1, @PathVariable String userId2) {
+        List<Channel> channels = channelService.getChannelsBetweenUsers(userId1, userId2);
         return ResponseEntity.ok(channels);
     }
 }
-
-

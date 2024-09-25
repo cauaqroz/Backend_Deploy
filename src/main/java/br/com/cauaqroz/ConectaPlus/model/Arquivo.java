@@ -9,7 +9,9 @@ public class Arquivo {
     private String id;
     private String nome;
     private String url;
-    private String projetoId; // Referência ao Projeto pelo ID
+    private String projetoId;
+
+    // Getters and Setters
     public String getId() {
         return id;
     }
@@ -34,6 +36,4 @@ public class Arquivo {
     public void setProjetoId(String projetoId) {
         this.projetoId = projetoId;
     }
-    
-    
 }

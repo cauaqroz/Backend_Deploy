@@ -1,19 +1,12 @@
-package br.com.cauaqroz.ConectaPlus.model;
+package br.com.cauaqroz.ConectaPlus.dto;
 
-import org.springframework.data.mongodb.core.mapping.Document;
-
-@Document
-public class Freelancer extends User {
+public class FreelancerDTO {
     private String description;
     private String portfolio;
-    private String education;
     private String areaOfExpertise;
-    private int completedJobs = 0;
-    private int onTimeDeliveries = 0;
-
-    public Freelancer() {
-        super();
-    }
+    private String education;
+    private int completedJobs;
+    private int onTimeDeliveries;
 
     public String getDescription() {
         return description;
@@ -31,20 +24,20 @@ public class Freelancer extends User {
         this.portfolio = portfolio;
     }
 
-    public String getEducation() {
-        return education;
-    }
-
-    public void setEducation(String education) {
-        this.education = education;
-    }
-
     public String getAreaOfExpertise() {
         return areaOfExpertise;
     }
 
     public void setAreaOfExpertise(String areaOfExpertise) {
         this.areaOfExpertise = areaOfExpertise;
+    }
+
+    public String getEducation() {
+        return education;
+    }
+
+    public void setEducation(String education) {
+        this.education = education;
     }
 
     public int getCompletedJobs() {
@@ -62,5 +55,4 @@ public class Freelancer extends User {
     public void setOnTimeDeliveries(int onTimeDeliveries) {
         this.onTimeDeliveries = onTimeDeliveries;
     }
-
 }

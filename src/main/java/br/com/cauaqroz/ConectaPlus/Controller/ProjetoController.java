@@ -1,12 +1,8 @@
 package br.com.cauaqroz.ConectaPlus.Controller;
 
-
-import java.io.InputStream;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
-
+import br.com.cauaqroz.ConectaPlus.model.Projeto;
+import br.com.cauaqroz.ConectaPlus.service.IFileStorageService;
+import br.com.cauaqroz.ConectaPlus.service.IProjetoService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.InputStreamResource;
 import org.springframework.http.HttpHeaders;
@@ -16,262 +12,133 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
-import br.com.cauaqroz.ConectaPlus.model.Channel;
-import br.com.cauaqroz.ConectaPlus.model.Projeto;
-import br.com.cauaqroz.ConectaPlus.model.User;
-import br.com.cauaqroz.ConectaPlus.repository.ChannelRepository;
-import br.com.cauaqroz.ConectaPlus.repository.ProjetoRepository;
-import br.com.cauaqroz.ConectaPlus.repository.UserRepository;
-import br.com.cauaqroz.ConectaPlus.service.FileStorageService;
+
+import java.io.InputStream;
+import java.lang.reflect.Field;
+import java.util.List;
+import java.util.Map;
+import org.springframework.util.ReflectionUtils;
 
 @RestController
 @RequestMapping("/projetos")
 public class ProjetoController {
 
     @Autowired
-    private ProjetoRepository projetoRepository;
+    private IProjetoService projetoService;
 
     @Autowired
-    private ChannelRepository channelRepository;
+    private IFileStorageService fileStorageService;
 
-    @Autowired
-    private UserRepository userRepository;
-
-     @Autowired
-    private FileStorageService fileStorageService;
-
-    //Implementação antiga do metodo criarProjeto
     @PostMapping
-    public Projeto criarProjeto(@RequestBody Projeto projeto, @RequestHeader("userId") String userId) {
-        User criador = userRepository.findById(userId).orElseThrow(() -> new RuntimeException("Usuário não encontrado."));
-        projeto.setCriador(criador);
-    
-        Channel channel = new Channel();
-        channel.setMasterUserId(userId);
-        channel.setAllowedUserIds(new ArrayList<>());
-        channel.setAccessRequests(new ArrayList<>());
-        channel.setMessages(new ArrayList<>());
-    
-        // Verifica se a lista de participantes aprovados não é nula antes de processar
-        if (projeto.getApprovedParticipants() != null) {
-            List<String> approvedUserIds = projeto.getApprovedParticipants().stream()
-                .map(user -> {
-                    User userObj = userRepository.findById(user).orElseThrow(() -> new RuntimeException("Usuário não encontrado."));
-                    return userObj.getId();
-                })
-                .collect(Collectors.toList());
-            channel.getAllowedUserIds().addAll(approvedUserIds);
-        }
-    
-        channel = channelRepository.save(channel);
-        projeto.setChatId(channel.getId());
-        return projetoRepository.save(projeto);
+    public ResponseEntity<Projeto> criarProjeto(@RequestBody Projeto projeto, @RequestHeader("userId") String userId) {
+        Projeto createdProjeto = projetoService.criarProjeto(projeto, userId);
+        return ResponseEntity.status(HttpStatus.CREATED).body(createdProjeto);
     }
 
-
-
     @GetMapping
-    public List<Projeto> listarProjetos() {
-        return projetoRepository.findAll();
+    public ResponseEntity<List<Projeto>> listarProjetos() {
+        List<Projeto> projetos = projetoService.listarProjetos();
+        return ResponseEntity.ok(projetos);
     }
 
     @GetMapping("/buscarProjetos")
-    public List<Projeto> buscarProjetosPorTitulo(@RequestParam String titulo) {
-        return projetoRepository.findByTituloContaining(titulo);
+    public ResponseEntity<List<Projeto>> buscarProjetosPorTitulo(@RequestParam String titulo) {
+        List<Projeto> projetos = projetoService.buscarProjetosPorTitulo(titulo);
+        return ResponseEntity.ok(projetos);
     }
-
 
     @GetMapping("/UserProjeto")
-    public List<Projeto> listarProjetosDoUsuario(@RequestHeader("userId") String userId) {
-        return projetoRepository.findByCriador_Id(userId);
+    public ResponseEntity<List<Projeto>> listarProjetosDoUsuario(@RequestHeader("userId") String userId) {
+        List<Projeto> projetos = projetoService.listarProjetosDoUsuario(userId);
+        return ResponseEntity.ok(projetos);
     }
-/* 
-//Antiga atualização do projeto
-
-@PutMapping("/{projetoId}")
-public ResponseEntity<?> editarProjeto(@PathVariable String projetoId, @RequestHeader("ownerId") String ownerId, @RequestBody Projeto projeto) {
-    Projeto projetoExistente = projetoRepository.findById(projetoId).orElseThrow(() -> new RuntimeException("Projeto não encontrado."));
-    
-    // Verificar se o usuário que está tentando editar é o proprietário do projeto
-    if (!projetoExistente.getCriador().getId().equals(ownerId)) {
-        return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Apenas o proprietário do projeto pode editá-lo.");
-    }
-    
-    projeto.setId(projetoId);
-    Projeto projetoAtualizado = projetoRepository.save(projeto);
-    return ResponseEntity.ok(projetoAtualizado);
-}
-*/
-
-//atualização do projeto com patch
-@PatchMapping("/{projetoId}")
-public ResponseEntity<?> atualizarParcialProjeto(@PathVariable String projetoId, @RequestHeader("ownerId") String ownerId, @RequestBody Map<String, Object> updates) {
-    Projeto projetoExistente = projetoRepository.findById(projetoId).orElseThrow(() -> new RuntimeException("Projeto não encontrado."));
-    
-    // Verificar se o usuário que está tentando editar é o proprietário do projeto
-    if (!projetoExistente.getCriador().getId().equals(ownerId)) {
-        return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Apenas o proprietário do projeto pode editá-lo.");
-    }
-    
-    // Atualizar apenas os campos fornecidos na requisição
-    updates.forEach((key, value) -> {
-        switch (key) {
-            case "titulo":
-                projetoExistente.setTitulo((String) value);
-                break;
-            case "descricao":
-                projetoExistente.setDescricao((String) value);
-                break;
-            case "tecnologia":
-                projetoExistente.setTecnologia((String) value);
-                break;
-            // Adicione mais campos conforme necessário
-            default:
-                throw new IllegalArgumentException("Campo não suportado: " + key);
-        }
-    });
-
-    Projeto projetoAtualizado = projetoRepository.save(projetoExistente);
-    return ResponseEntity.ok(projetoAtualizado);
-}
-
 
     @PostMapping("/{projetoId}/uploadCapa")
-    public ResponseEntity<?> uploadCapa(@PathVariable String projetoId, @RequestParam("file") MultipartFile file) {
-        Projeto projeto = projetoRepository.findById(projetoId).orElseThrow(() -> new RuntimeException("Projeto não encontrado."));
-        String capaUrl = fileStorageService.uploadFile(file);
-        projeto.setCapaUrl(capaUrl);
-        projetoRepository.save(projeto);
-        return ResponseEntity.ok().build();
+public ResponseEntity<?> uploadCapa(@PathVariable String projetoId, @RequestParam("file") MultipartFile file) {
+    String fileId = fileStorageService.uploadFile(file);
+    Projeto projeto = projetoService.buscarProjetoPorId(projetoId).orElseThrow(() -> new RuntimeException("Projeto não encontrado."));
+    projeto.setCapaUrl(fileId);
+    projetoService.atualizarProjeto(projeto);
+    return ResponseEntity.ok("Capa carregada com sucesso.");
+}
+
+@PatchMapping("/{projetoId}")
+public ResponseEntity<?> atualizarParcialProjeto(@PathVariable String projetoId, @RequestHeader("ownerId") String ownerId, @RequestBody Map<String, Object> updates) {
+    Projeto projeto = projetoService.buscarProjetoPorId(projetoId).orElseThrow(() -> new RuntimeException("Projeto não encontrado."));
+    if (!projeto.getCriador().getId().equals(ownerId)) {
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Você não tem permissão para atualizar este projeto.");
     }
+    updates.forEach((key, value) -> {
+        Field field = ReflectionUtils.findField(Projeto.class, key);
+        field.setAccessible(true);
+        ReflectionUtils.setField(field, projeto, value);
+    });
+    projetoService.atualizarProjeto(projeto);
+    return ResponseEntity.ok("Projeto atualizado com sucesso.");
+}
 
 @PostMapping("/{projetoId}/solicitarParticipacao")
 public ResponseEntity<?> solicitarParticipacao(@PathVariable String projetoId, @RequestHeader("userId") String userId) {
-    Projeto projeto = projetoRepository.findById(projetoId).orElseThrow(() -> new RuntimeException("Projeto não encontrado."));
-    
-    if (projeto.getParticipationRequests().contains(userId)) {
-        return ResponseEntity.badRequest().body("Solicitação de participação já enviada.");
-    }
-
-    projeto.getParticipationRequests().add(userId);
-    projetoRepository.save(projeto);
-
-    return ResponseEntity.ok().body("Solicitação de participação enviada com sucesso.");
+    projetoService.solicitarParticipacao(projetoId, userId);
+    return ResponseEntity.ok("Solicitação de participação enviada.");
 }
 
-// Método para aprovar um usuário em um projeto
-@PostMapping("/{projetoId}/aprovarUsuario")
-public ResponseEntity<?> aprovarUsuario(@PathVariable String projetoId, @RequestHeader("ownerId") String ownerId, @RequestBody Map<String, String> requestBody) {
-    String userId = requestBody.get("userId");
-    Projeto projeto = projetoRepository.findById(projetoId).orElseThrow(() -> new RuntimeException("Projeto não encontrado."));
-    
-    // Verificar se o usuário que está tentando aprovar é o proprietário do projeto
-    if (!projeto.getCriador().getId().equals(ownerId)) {
-        return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Apenas o proprietário do projeto pode aprovar usuários.");
+    @PostMapping("/{projetoId}/aprovarUsuario")
+    public ResponseEntity<?> aprovarUsuario(@PathVariable String projetoId, @RequestHeader("ownerId") String ownerId, @RequestBody Map<String, String> requestBody) {
+        projetoService.aprovarUsuario(projetoId, ownerId, requestBody.get("userId"));
+        return ResponseEntity.ok("Usuário aprovado com sucesso.");
     }
 
-    Channel channel = channelRepository.findById(projeto.getChatId()).orElseThrow(() -> new RuntimeException("Canal não encontrado."));
-
-    // Verificar se a lista allowedUserIds está inicializada
-    if (channel.getAllowedUserIds() == null) {
-        channel.setAllowedUserIds(new ArrayList<>());
-    }
-
-    // Adicionar log para verificar o estado atual das solicitações de participação
-    System.out.println("Solicitações de participação antes da remoção: " + projeto.getParticipationRequests());
-
-    if (!projeto.getParticipationRequests().remove(userId)) {
-        return ResponseEntity.badRequest().body("Solicitação de participação não encontrada.");
-    }
-
-    // Adicionar log para verificar o estado das solicitações de participação após a remoção
-    System.out.println("Solicitações de participação após a remoção: " + projeto.getParticipationRequests());
-
-    projeto.getApprovedParticipants().add(userId);
-    channel.getAllowedUserIds().add(userId);
-
-    projetoRepository.save(projeto);
-    channelRepository.save(channel);
-
-    return ResponseEntity.ok().body("Usuário aprovado com sucesso.");
-}
-// Método para listar solicitações de participação em um projeto
     @GetMapping("/{projetoId}/pedidosParticipacao")
-    public List<String> listarPedidosParticipacao(@PathVariable String projetoId) {
-        Projeto projeto = projetoRepository.findById(projetoId).orElseThrow(() -> new RuntimeException("Projeto não encontrado."));
-        return projeto.getParticipationRequests();
+    public ResponseEntity<List<String>> listarPedidosParticipacao(@PathVariable String projetoId) {
+        List<String> pedidos = projetoService.listarPedidosParticipacao(projetoId);
+        return ResponseEntity.ok(pedidos);
     }
 
-    
     @DeleteMapping("/{projetoId}/negarSolicitacao/{userId}")
     public ResponseEntity<?> negarSolicitacao(@PathVariable String projetoId, @PathVariable String userId, @RequestHeader("ownerId") String ownerId) {
-        Projeto projeto = projetoRepository.findById(projetoId).orElseThrow(() -> new RuntimeException("Projeto não encontrado."));
-        
-        // Verificar se o usuário que está tentando negar é o proprietário do projeto
-        if (!projeto.getCriador().getId().equals(ownerId)) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Apenas o proprietário do projeto pode negar solicitações.");
-        }
-    
-        if (!projeto.getParticipationRequests().remove(userId)) {
-            return ResponseEntity.badRequest().body("Solicitação de participação não encontrada.");
-        }
-        projetoRepository.save(projeto);
-        return ResponseEntity.ok().body("Solicitação negada.");
+        projetoService.negarSolicitacao(projetoId, userId, ownerId);
+        return ResponseEntity.ok("Solicitação negada com sucesso.");
     }
-    /* //negar solicitação antigo
-    @DeleteMapping("/{projetoId}/negarSolicitacao/{userId}")
-    public ResponseEntity<?> negarSolicitacao(@PathVariable String projetoId, @PathVariable String userId) {
-        Projeto projeto = projetoRepository.findById(projetoId).orElseThrow(() -> new RuntimeException("Projeto não encontrado."));
-        if (!projeto.getParticipationRequests().remove(userId)) {
-            return ResponseEntity.badRequest().body("Solicitação de participação não encontrada.");
-        }
-        projetoRepository.save(projeto);
-        return ResponseEntity.ok().body("Solicitação negada.");
-    }*/
 
     @DeleteMapping("/{projetoId}")
-public ResponseEntity<?> excluirProjeto(@PathVariable String projetoId, @RequestHeader("ownerId") String ownerId) {
-    Projeto projeto = projetoRepository.findById(projetoId).orElseThrow(() -> new RuntimeException("Projeto não encontrado."));
-    
-    // Verificar se o usuário que está tentando excluir é o proprietário do projeto
-    if (!projeto.getCriador().getId().equals(ownerId)) {
-        return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Apenas o proprietário do projeto pode excluí-lo.");
+    public ResponseEntity<?> excluirProjeto(@PathVariable String projetoId, @RequestHeader("ownerId") String ownerId) {
+        Projeto projeto = projetoService.buscarProjetoPorId(projetoId).orElseThrow(() -> new RuntimeException("Projeto não encontrado."));
+        if (!projeto.getCriador().getId().equals(ownerId)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Você não tem permissão para excluir este projeto.");
+        }
+        projetoService.excluirProjeto(projetoId);
+        return ResponseEntity.ok("Projeto excluído com sucesso.");
     }
-
-    channelRepository.deleteById(projeto.getChatId());
-    projetoRepository.deleteById(projetoId);
-    return ResponseEntity.ok().body("Projeto excluído com sucesso.");
-}
 
     @GetMapping("/{projetoId}")
-    public Projeto exibirProjeto(@PathVariable String projetoId) {
-        return projetoRepository.findById(projetoId).orElseThrow(() -> new RuntimeException("Projeto não encontrado."));
+    public ResponseEntity<Projeto> exibirProjeto(@PathVariable String projetoId) {
+        Projeto projeto = projetoService.buscarProjetoPorId(projetoId).orElse(null);
+        if (projeto == null) {
+            return ResponseEntity.notFound().build();
+        }
+        return ResponseEntity.ok(projeto);
     }
 
-    
-    //recuperar imagem
     @GetMapping("/{projetoId}/capa")
     public ResponseEntity<InputStreamResource> getCapa(@PathVariable String projetoId) {
-        Projeto projeto = projetoRepository.findById(projetoId)
-                .orElseThrow(() -> new RuntimeException("Projeto não encontrado."));
-        
-        String capaUrl = projeto.getCapaUrl();
-        if (capaUrl == null) {
-            throw new RuntimeException("Capa não encontrada para o projeto.");
+        Projeto projeto = projetoService.buscarProjetoPorId(projetoId).orElse(null);
+        if (projeto == null || projeto.getCapaUrl() == null) {
+            return ResponseEntity.notFound().build();
         }
 
-        InputStream fileStream = fileStorageService.downloadFile(capaUrl);
+        InputStream inputStream = fileStorageService.downloadFile(projeto.getCapaUrl());
         return ResponseEntity.ok()
-                .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + capaUrl + "\"")
-                .contentType(MediaType.IMAGE_JPEG) // Ajuste o tipo de mídia conforme necessário
-                .body(new InputStreamResource(fileStream));
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + projeto.getCapaUrl() + "\"")
+                .contentType(MediaType.APPLICATION_OCTET_STREAM)
+                .body(new InputStreamResource(inputStream));
     }
 
     @GetMapping("/notify/{chatId}")
-    public ResponseEntity<?> buscarProjetoPorChatId(@PathVariable String chatId) {
-        Projeto projeto = projetoRepository.findByChatId(chatId);
+    public ResponseEntity<Projeto> buscarProjetoPorChatId(@PathVariable String chatId) {
+        Projeto projeto = projetoService.buscarProjetoPorChatId(chatId);
         if (projeto == null) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Projeto não encontrado para o chatId fornecido.");
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(null);
         }
         return ResponseEntity.ok(projeto);
     }

@@ -2,8 +2,10 @@ package br.com.cauaqroz.ConectaPlus.model;
 
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
+import org.springframework.data.mongodb.core.mapping.DBRef;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Random;
 
 @Document
@@ -18,20 +20,13 @@ public class User {
     private String country;
     private String state;
     private String avatar;
-
+    private List<String> friends;
 
     public User() {
         this.id = generateRandomId(10);
         this.registrationDate = LocalDateTime.now();
     }
-    public String getAvatar() {
-        return avatar;
-    }
-
-    public void setAvatar(String avatar) {
-        this.avatar = avatar;
-    }
-
+    
     private static String generateRandomId(int length) {
         String characters = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
         StringBuilder result = new StringBuilder();
@@ -106,4 +101,19 @@ public class User {
         this.state = state;
     }
 
+    public String getAvatar() {
+        return avatar;
+    }
+
+    public void setAvatar(String avatar) {
+        this.avatar = avatar;
+    }
+
+    public List<String> getFriends() {
+        return friends;
+    }
+
+    public void setFriends(List<String> friends) {
+        this.friends = friends;
+    }
 }

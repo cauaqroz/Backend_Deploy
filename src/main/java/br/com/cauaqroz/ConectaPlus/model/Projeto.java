@@ -22,22 +22,7 @@ public class Projeto {
     private String chatId;
     private String capaUrl;
 
-    
-    public List<String> getParticipationRequests() {
-        return participationRequests;
-    }
-
-    public void setParticipationRequests(List<String> participationRequests) {
-        this.participationRequests = participationRequests;
-    }
-
-    public List<String> getApprovedParticipants() {
-        return approvedParticipants;
-    }
-
-    public void setApprovedParticipants(List<String> approvedParticipants) {
-        this.approvedParticipants = approvedParticipants;
-    } 
+    // Getters and Setters
     public String getId() {
         return id;
     }
@@ -68,6 +53,18 @@ public class Projeto {
     public void setCriador(User criador) {
         this.criador = criador;
     }
+    public List<String> getParticipationRequests() {
+        return participationRequests;
+    }
+    public void setParticipationRequests(List<String> participationRequests) {
+        this.participationRequests = participationRequests;
+    }
+    public List<String> getApprovedParticipants() {
+        return approvedParticipants;
+    }
+    public void setApprovedParticipants(List<String> approvedParticipants) {
+        this.approvedParticipants = approvedParticipants;
+    }
     public List<String> getArquivos() {
         return arquivos;
     }
@@ -86,7 +83,4 @@ public class Projeto {
     public void setCapaUrl(String capaUrl) {
         this.capaUrl = capaUrl;
     }
-    
-    
-
 }
