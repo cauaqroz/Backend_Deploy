@@ -142,4 +142,16 @@ public ResponseEntity<?> solicitarParticipacao(@PathVariable String projetoId, @
         }
         return ResponseEntity.ok(projeto);
     }
+
+    @PostMapping("/{projetoId}/sair")
+public ResponseEntity<?> sairDoProjeto(@PathVariable String projetoId, @RequestHeader("userId") String userId) {
+    projetoService.sairDoProjeto(projetoId, userId);
+    return ResponseEntity.ok().build();
+}
+
+@DeleteMapping("/{projetoId}/removerUsuario/{userId}")
+public ResponseEntity<?> removerUsuario(@PathVariable String projetoId, @PathVariable String userId, @RequestHeader("ownerId") String ownerId) {
+    projetoService.removerUsuario(projetoId, ownerId, userId);
+    return ResponseEntity.ok().build();
+}
 }

@@ -21,8 +21,15 @@ public class Projeto {
     private List<String> arquivos = new ArrayList<>();
     private String chatId;
     private String capaUrl;
+    private double valor;
 
-    // Getters and Setters
+    public double getValor() {
+        return valor;
+    }
+    
+    public void setValor(double valor) {
+        this.valor = valor;
+    }
     public String getId() {
         return id;
     }

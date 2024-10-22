@@ -52,6 +52,7 @@ public class ProjetoService implements IProjetoService {
 
         channel = channelRepository.save(channel);
         projeto.setChatId(channel.getId());
+        projeto.setValor(projeto.getValor());
         return projetoRepository.save(projeto);
     }
 
@@ -141,4 +142,34 @@ public void aprovarUsuario(String projetoId, String ownerId, String userId) {
         }
         projetoRepository.save(projeto);
     }
+    @Override
+public void sairDoProjeto(String projetoId, String userId) {
+    Projeto projeto = projetoRepository.findById(projetoId).orElseThrow(() -> new RuntimeException("Projeto não encontrado."));
+    projeto.getApprovedParticipants().remove(userId);
+    projetoRepository.save(projeto);
+
+    // Remover o usuário do canal
+    Channel channel = channelRepository.findById(projeto.getChatId()).orElse(null);
+    if (channel != null) {
+        channel.getAllowedUserIds().remove(userId);
+        channelRepository.save(channel);
+    }
+}
+
+@Override
+public void removerUsuario(String projetoId, String ownerId, String userId) {
+    Projeto projeto = projetoRepository.findById(projetoId).orElseThrow(() -> new RuntimeException("Projeto não encontrado."));
+    if (!projeto.getCriador().getId().equals(ownerId)) {
+        throw new RuntimeException("Apenas o dono do projeto pode remover usuários.");
+    }
+    projeto.getApprovedParticipants().remove(userId);
+    projetoRepository.save(projeto);
+
+    // Remover o usuário do canal
+    Channel channel = channelRepository.findById(projeto.getChatId()).orElse(null);
+    if (channel != null) {
+        channel.getAllowedUserIds().remove(userId);
+        channelRepository.save(channel);
+    }
+}
 }

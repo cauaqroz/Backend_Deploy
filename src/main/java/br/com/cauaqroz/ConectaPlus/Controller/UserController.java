@@ -2,7 +2,6 @@ package br.com.cauaqroz.ConectaPlus.Controller;
 
 import br.com.cauaqroz.ConectaPlus.model.User;
 import br.com.cauaqroz.ConectaPlus.model.Freelancer;
-import br.com.cauaqroz.ConectaPlus.model.Friendship;
 import br.com.cauaqroz.ConectaPlus.model.Projeto;
 import br.com.cauaqroz.ConectaPlus.service.IUserService;
 import br.com.cauaqroz.ConectaPlus.service.IFreelancerService;
@@ -41,7 +40,8 @@ public class UserController {
     @PostMapping
     public ResponseEntity<?> createUser(@RequestBody User userDto) {
         try {
-            return ResponseEntity.ok("Usuário cadastrado com sucesso.");
+            User createdUser = userService.createUser(userDto);
+            return ResponseEntity.status(HttpStatus.CREATED).body("Usuário cadastrado com sucesso.");
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(e.getMessage());
         }
@@ -165,7 +165,7 @@ public class UserController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
         }
     }
-
+/* Endpoint antigo para adicionar amigo 
     @PostMapping("/addFriend")
     public ResponseEntity<?> addFriend(@RequestHeader("userId") String userId, @RequestBody Map<String, String> requestBody) {
         String friendId = requestBody.get("friendId");
@@ -177,6 +177,21 @@ public class UserController {
             return ResponseEntity.badRequest().body(e.getMessage());
         }
     }
+*/
+
+@PostMapping("/addFriend")
+public ResponseEntity<?> addFriend(@RequestHeader("userId") String userId, @RequestBody Map<String, String> requestBody) {
+    String friendId = requestBody.get("friendId");
+
+    try {
+        userService.addFriend(userId, friendId);
+        return ResponseEntity.ok().body("Amigo adicionado com sucesso.");
+    } catch (IllegalArgumentException e) {
+        return ResponseEntity.badRequest().body(e.getMessage());
+    } catch (RuntimeException e) {
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(e.getMessage());
+    }
+}
 
     @PostMapping("/removeFriend")
     public ResponseEntity<?> removeFriend(@RequestHeader("userId") String userId, @RequestBody Map<String, String> requestBody) {

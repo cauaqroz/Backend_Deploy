@@ -17,4 +17,6 @@ public interface IProjetoService {
     List<String> listarPedidosParticipacao(String projetoId);
     void aprovarUsuario(String projetoId, String ownerId, String userId);
     void negarSolicitacao(String projetoId, String userId, String ownerId);
+    void sairDoProjeto(String projetoId, String userId);
+    void removerUsuario(String projetoId, String ownerId, String userId);
 }

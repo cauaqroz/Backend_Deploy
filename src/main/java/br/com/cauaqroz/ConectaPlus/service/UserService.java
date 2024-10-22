@@ -24,23 +24,23 @@ public class UserService implements IUserService {
     @Autowired
 private ChannelService channelService;
 
-    @Override
-    public User createUser(User userDto) {
-        if (userRepository.findByEmail(userDto.getEmail()).isPresent()) {
-            throw new IllegalArgumentException("Email already exists");
-        }
-        User user = new User();
-        user.setName(userDto.getName());
-        user.setLastName(userDto.getLastName());
-        user.setEmail(userDto.getEmail());
-
-        BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
-        String hashedPassword = passwordEncoder.encode(userDto.getPassword());
-        user.setPassword(hashedPassword);
-        user.setCountry(userDto.getCountry());
-        user.setState(userDto.getState());
-        return userRepository.save(user);
+@Override
+public User createUser(User userDto) {
+    if (userRepository.findByEmail(userDto.getEmail()).isPresent()) {
+        throw new IllegalArgumentException("Email já existe");
     }
+    User user = new User();
+    user.setName(userDto.getName());
+    user.setLastName(userDto.getLastName());
+    user.setEmail(userDto.getEmail());
+
+    BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
+    String hashedPassword = passwordEncoder.encode(userDto.getPassword());
+    user.setPassword(hashedPassword);
+    user.setCountry(userDto.getCountry());
+    user.setState(userDto.getState());
+    return userRepository.save(user);
+}
 
     @Override
     public Optional<User> getUserByEmail(String email) {
@@ -116,7 +116,7 @@ private ChannelService channelService;
         });
     }
 
-
+/* Metodo Adicionar amigo - Antigo
     @Override
     public void addFriend(String userId, String friendId) {
         User user = userRepository.findById(userId).orElseThrow(() -> new RuntimeException("Usuário não encontrado."));
@@ -147,6 +147,42 @@ private ChannelService channelService;
             channelService.save(newChannel);
         }
     }
+*/
+
+@Override
+public void addFriend(String userId, String friendId) {
+    User user = userRepository.findById(userId).orElseThrow(() -> new RuntimeException("Usuário não encontrado."));
+    User friend = userRepository.findById(friendId).orElseThrow(() -> new RuntimeException("Amigo não encontrado."));
+
+    if (user.getFriends() == null) {
+        user.setFriends(new ArrayList<>());
+    }
+    if (friend.getFriends() == null) {
+        friend.setFriends(new ArrayList<>());
+    }
+
+    if (!user.getFriends().contains(friendId)) {
+        user.getFriends().add(friendId);
+        friend.getFriends().add(userId);
+
+        userRepository.save(user);
+        userRepository.save(friend);
+
+        // Verificar se já existe um canal entre os dois usuários
+        List<Channel> existingChannels = channelService.getChannelsBetweenUsers(userId, friendId);
+        boolean friendChannelExists = existingChannels.stream().anyMatch(channel -> "friend".equals(channel.getType()));
+
+        if (!friendChannelExists) {
+            Channel newChannel = new Channel();
+            newChannel.setMasterUserId(userId);
+            newChannel.setAllowedUserIds(Arrays.asList(userId, friendId));
+            newChannel.setType("friend"); // Definir o tipo como "friend"
+            channelService.save(newChannel);
+        }
+    } else {
+        throw new IllegalArgumentException("Amigo já está na lista de amigos.");
+    }
+}
 
 
     @Override
