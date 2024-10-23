@@ -1,6 +1,8 @@
 package br.com.cauaqroz.ConectaPlus.Controller;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.messaging.handler.annotation.DestinationVariable;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.handler.annotation.SendTo;
@@ -29,9 +31,10 @@ public class ChatController {
         return messageService.sendMessage(channelId, message);
     }
 
-    @PostMapping("/chat/{channelId}")
-    public Message sendPost(@PathVariable String channelId, @RequestBody Message message) throws Exception {
-        return this.send(channelId, message);
+     @PostMapping("/chat/{channelId}")
+    public ResponseEntity<Void> sendPost(@PathVariable String channelId, @RequestBody Message message) throws Exception {
+        this.send(channelId, message);
+        return ResponseEntity.status(HttpStatus.NO_CONTENT).build(); // Retorna 204 No Content
     }
 
     @GetMapping("/chat/{channelId}/messages")
