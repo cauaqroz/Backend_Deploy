@@ -79,8 +79,12 @@ public ResponseEntity<?> atualizarParcialProjeto(@PathVariable String projetoId,
 
 @PostMapping("/{projetoId}/solicitarParticipacao")
 public ResponseEntity<?> solicitarParticipacao(@PathVariable String projetoId, @RequestHeader("userId") String userId) {
-    projetoService.solicitarParticipacao(projetoId, userId);
-    return ResponseEntity.ok("Solicitação de participação enviada.");
+    try {
+        projetoService.solicitarParticipacao(projetoId, userId);
+        return ResponseEntity.ok("Solicitação de participação enviada.");
+    } catch (RuntimeException e) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
+    }
 }
 
     @PostMapping("/{projetoId}/aprovarUsuario")

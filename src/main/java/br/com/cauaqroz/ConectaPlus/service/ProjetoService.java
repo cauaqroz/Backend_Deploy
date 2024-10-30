@@ -94,9 +94,17 @@ public class ProjetoService implements IProjetoService {
     @Override
     public void solicitarParticipacao(String projetoId, String userId) {
         Projeto projeto = projetoRepository.findById(projetoId).orElseThrow(() -> new RuntimeException("Projeto não encontrado."));
+    
+        // Verificar se o usuário já está na lista de pedidos de participação
         if (projeto.getParticipationRequests().contains(userId)) {
             throw new RuntimeException("Solicitação de participação já enviada.");
         }
+    
+        // Verificar se o usuário já está na lista de participantes aprovados
+        if (projeto.getApprovedParticipants().contains(userId)) {
+            throw new RuntimeException("Usuário já é participante deste projeto.");
+        }
+    
         projeto.getParticipationRequests().add(userId);
         projetoRepository.save(projeto);
     }
