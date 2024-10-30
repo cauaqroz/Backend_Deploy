@@ -31,10 +31,10 @@ public class ChatController {
         return messageService.sendMessage(channelId, message);
     }
 
-     @PostMapping("/chat/{channelId}")
-    public ResponseEntity<Void> sendPost(@PathVariable String channelId, @RequestBody Message message) throws Exception {
-        this.send(channelId, message);
-        return ResponseEntity.status(HttpStatus.NO_CONTENT).build(); // Retorna 204 No Content
+    @PostMapping("/chat/{channelId}")
+    public ResponseEntity<Message> sendPost(@PathVariable String channelId, @RequestBody Message message) throws Exception {
+        Message sentMessage = this.send(channelId, message);
+        return ResponseEntity.status(HttpStatus.OK).body(sentMessage); // Retorna 200 OK com o objeto Message
     }
 
     @GetMapping("/chat/{channelId}/messages")
